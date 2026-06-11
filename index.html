@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Favoris</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .theme-light { background-color: #f1f5f9; color: #1e293b; }
+        .theme-dark { background-color: #0f172a; color: #f8fafc; }
+    </style>
+</head>
+<body id="theme-body" class="theme-light min-h-screen p-4 transition-colors duration-300">
+
+    <div class="max-w-sm mx-auto">
+        <div class="flex gap-2 mb-6">
+            <input type="text" id="search" placeholder="Rechercher..." oninput="render()" class="flex-1 bg-white/20 p-2 rounded-xl text-sm outline-none">
+            <button onclick="document.getElementById('import-input').click()" class="px-3 bg-white/20 rounded-xl text-sm" title="Importer HTML">📁</button>
+            <input type="file" id="import-input" class="hidden" accept=".html" onchange="importData(event)">
+            <select onchange="document.getElementById('theme-body').className = this.value + ' min-h-screen p-4 transition-colors'" class="bg-transparent text-xs border rounded px-2">
+                <option value="theme-light">Clair</option>
+                <option value="theme-dark">Sombre</option>
+            </select>
+        </div>
+
+        <div class="glass p-4 rounded-3xl mb-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-xs font-bold uppercase opacity-50">Ajouter un favori</span>
+                <button onclick="toggleForm()" id="toggle-btn" class="text-sm opacity-50 hover:opacity-100">▼</button>
+            </div>
+            <div id="form-body" class="space-y-3">
+                <input id="name" placeholder="Nom" class="w-full bg-black/10 p-2 rounded-xl text-sm outline-none">
+                <input id="url" placeholder="URL" class="w-full bg-black/10 p-2 rounded-xl text-sm outline-none">
+                
+                <div class="flex gap-2">
+                    <select id="folder-select" class="flex-1 bg-black/10 p-2 rounded-xl text-sm outline-none">
+                        <option value="Général">Général</option>
+                    </select>
+                    <input id="new-folder" placeholder="+ Dossier" class="flex-1 bg-black/10 p-2 rounded-xl text-sm outline-none">
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="addEntry()" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-xl text-sm font-bold shadow-lg">Ajouter</button>
+                    <button onclick="exportBrowserFormat()" class="px-4 bg-white/20 rounded-xl text-sm font-bold" title="Exporter format navigateur">🌐</button>
+                    <button onclick="exportData()" class="px-4 bg-white/20 rounded-xl text-sm font-bold" title="Exporter HTML">⬇</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="folders-container" class="space-y-4"></div>
+    </div>
+
+    <script>
+        let data = JSON.parse(localStorage.getItem('fav_data') || '{"Général": []}');
+        let collapsedFolders = JSON.parse(localStorage.getItem('collapsed_folders') || '{}');
+        let formVisible = true;
+
+        function toggleForm() {
+            formVisible = !formVisible;
+            document.getElementById('form-body').classList.toggle('hidden', !formVisible);
+            document.getElementById('toggle-btn').innerText = formVisible ? '▼' : '▲';
+        }
+
+        function save() { 
+            localStorage.setItem('fav_data', JSON.stringify(data)); 
+            localStorage.setItem('collapsed_folders', JSON.stringify(collapsedFolders));
+            render(); 
+        }
+
+        function addEntry() {
+            const name = document.getElementById('name').value;
+            const url = document.getElementById('url').value;
+            const newFolderInput = document.getElementById('new-folder').value.trim();
+            const existingFolder = document.getElementById('folder-select').value;
+            const folder = newFolderInput !== "" ? newFolderInput : existingFolder;
+            
+            if (name && url) {
+                if (!data[folder]) data[folder] = [];
+                data[folder].push({ name, url: url.startsWith('http') ? url : 'https://' + url });
+                document.getElementById('name').value = '';
+                document.getElementById('url').value = '';
+                document.getElementById('new-folder').value = '';
+                save();
+            }
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(e.target.result, "text/html");
+                const links = doc.querySelectorAll('a');
+                links.forEach(a => {
+                    const folder = "Importé";
+                    if (!data[folder]) data[folder] = [];
+                    data[folder].push({ name: a.innerText, url: a.href });
+                });
+                save();
+            };
+            reader.readAsText(file);
+        }
+
+        function exportBrowserFormat() {
+            let html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Favoris</TITLE>\n<DL><p>\n`;
+            Object.keys(data).forEach(folder => {
+                html += `    <DT><H3>${folder}</H3>\n    <DL><p>\n`;
+                data[folder].forEach(fav => { html += `        <DT><A HREF="${fav.url}">${fav.name}</A>\n`; });
+                html += `    </DL><p>\n`;
+            });
+            html += `</DL><p>`;
+            const blob = new Blob([html], {type: 'text/html'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bookmarks.html'; a.click();
+        }
+
+        function exportData() {
+            let html = `<!DOCTYPE html><html><body><h1>Favoris</h1>`;
+            Object.keys(data).forEach(folder => {
+                html += `<h2>${folder}</h2><ul>`;
+                data[folder].forEach(fav => { html += `<li><a href="${fav.url}">${fav.name}</a></li>`; });
+                html += `</ul>`;
+            });
+            html += `</body></html>`;
+            const blob = new Blob([html], {type: 'text/html'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'favoris.html'; a.click();
+        }
+
+        function toggleFolder(folder) { collapsedFolders[folder] = !collapsedFolders[folder]; save(); }
+        function deleteFolder(folder) { if(confirm('Supprimer ce dossier ?')) { delete data[folder]; save(); } }
+        function deleteFav(folder, index) { data[folder].splice(index, 1); save(); }
+
+        function render() {
+            const container = document.getElementById('folders-container');
+            const select = document.getElementById('folder-select');
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            
+            select.innerHTML = '';
+            Object.keys(data).forEach(f => select.innerHTML += `<option value="${f}">${f}</option>`);
+
+            container.innerHTML = '';
+            Object.keys(data).forEach(folder => {
+                const isCollapsed = collapsedFolders[folder];
+                // Filtrage par recherche
+                const filtered = data[folder].filter(f => f.name.toLowerCase().includes(searchTerm));
+                if (filtered.length === 0 && searchTerm !== "") return;
+
+                const folderDiv = document.createElement('div');
+                folderDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <button onclick="toggleFolder('${folder}')" class="text-[10px] font-bold uppercase tracking-widest opacity-50 hover:opacity-100">${isCollapsed ? '▶' : '▼'} ${folder}</button>
+                        <button onclick="deleteFolder('${folder}')" class="text-[10px] hover:text-red-500">Supprimer</button>
+                    </div>
+                    <div class="space-y-2 ${isCollapsed ? 'hidden' : ''}">
+                        ${filtered.map((f, i) => `
+                            <div class="glass p-3 rounded-2xl flex justify-between items-center hover:scale-[1.02] transition-transform">
+                                <a href="${f.url}" target="_blank" class="text-sm font-medium truncate">${f.name}</a>
+                                <button onclick="deleteFav('${folder}', ${i})" class="opacity-30 hover:opacity-100">✕</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(folderDiv);
+            });
+        }
+        render();
+    </script>
+</body>
+</html>
