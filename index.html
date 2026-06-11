@@ -1,0 +1,87 @@
+
+```html
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes Favoris</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <!-- En-tête -->
+        <div class="p-6 bg-indigo-600 text-white">
+            <h1 class="text-xl font-bold flex items-center gap-2">Mes Favoris</h1>
+        </div>
+
+        <!-- Onglets -->
+        <div class="flex border-b border-gray-200">
+            <button onclick="showTab('list')" id="tab-list" class="flex-1 py-3 font-medium text-indigo-600 border-b-2 border-indigo-600">Liste</button>
+            <button onclick="showTab('add')" id="tab-add" class="flex-1 py-3 font-medium text-gray-500">Ajouter</button>
+        </div>
+
+        <!-- Contenu -->
+        <div class="p-6">
+            <div id="view-list">
+                <ul id="favorites-list" class="space-y-3"></ul>
+            </div>
+
+            <div id="view-add" class="hidden space-y-4">
+                <input type="text" id="fav-name" placeholder="Nom du site" class="w-full p-3 rounded-lg border border-gray-300">
+                <input type="url" id="fav-url" placeholder="https://exemple.com" class="w-full p-3 rounded-lg border border-gray-300">
+                <button onclick="addFavorite()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let favorites = JSON.parse(localStorage.getItem('my_favorites') || '[]');
+
+        function showTab(tab) {
+            document.getElementById('view-list').classList.toggle('hidden', tab !== 'list');
+            document.getElementById('view-add').classList.toggle('hidden', tab !== 'add');
+            document.getElementById('tab-list').className = tab === 'list' ? 'flex-1 py-3 font-medium text-indigo-600 border-b-2 border-indigo-600' : 'flex-1 py-3 font-medium text-gray-500';
+            document.getElementById('tab-add').className = tab === 'add' ? 'flex-1 py-3 font-medium text-indigo-600 border-b-2 border-indigo-600' : 'flex-1 py-3 font-medium text-gray-500';
+        }
+
+        function render() {
+            const list = document.getElementById('favorites-list');
+            list.innerHTML = favorites.length === 0 ? '<p class="text-gray-400 text-center py-10">Aucun favori enregistré.</p>' : '';
+            favorites.forEach((fav, index) => {
+                const li = document.createElement('li');
+                li.className = "flex items-center bg-gray-50 rounded-xl border border-gray-200 hover:border-indigo-400 transition overflow-hidden";
+                li.innerHTML = `
+                    <a href="${fav.url}" target="_blank" class="flex-1 p-4 font-medium text-gray-800">${fav.name}</a>
+                    <button onclick="removeFavorite(${index})" class="p-4 text-gray-400 hover:text-red-500">Supprimer</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function addFavorite() {
+            const name = document.getElementById('fav-name').value;
+            let url = document.getElementById('fav-url').value;
+            if (!name || !url) return;
+            if (!url.startsWith('http')) url = 'https://' + url;
+            favorites.push({ name, url });
+            localStorage.setItem('my_favorites', JSON.stringify(favorites));
+            document.getElementById('fav-name').value = '';
+            document.getElementById('fav-url').value = '';
+            showTab('list');
+            render();
+        }
+
+        function removeFavorite(index) {
+            favorites.splice(index, 1);
+            localStorage.setItem('my_favorites', JSON.stringify(favorites));
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>
+
+```
